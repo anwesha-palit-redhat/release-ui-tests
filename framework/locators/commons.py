@@ -17,15 +17,26 @@ class LoginPageLocators:
 class LeftNavigationBarLocators:
     """Locators for the Left Navigation Bar"""
 
+    # Section toggle only (qs-nav-pipelines also matches the child Pipelines link)
     PIPELINES_BUTTON = '[data-test="nav-pipelines"]'
     KUBE_ADMIN_MENU = 'button[aria-label="User menu"]'
 
-    NAV_OVERVIEW_LINK = 'a[href^="/pipelines-overview/all-namespaces"], a[href^="/pipelines-overview/ns/"]'
-    NAV_PIPELINES_LINK = (
-        'a[data-test="nav"][href^="/pipelines/ns"], a[data-test="nav"][href^="/pipelines/all-namespaces"]'
+    NAV_OVERVIEW_LINK = (
+        'a[href^="/pipelines-overview/all-namespaces"], a[href^="/pipelines-overview/ns/"], '
+        'a[data-test="nav"][href*="pipelines-overview"]'
     )
-    NAV_TASKS_LINK = 'a[data-test="nav"][href^="/tasks/ns"], a[data-test="nav"][href^="/tasks/all-namespaces"]'
-    NAV_TRIGGERS_LINK = 'a[data-test="nav"][href^="/triggers/ns"], a[data-test="nav"][href^="/triggers/all-namespaces"]'
+    NAV_PIPELINES_LINK = (
+        'a[data-test="nav"][href^="/pipelines/ns"], a[data-test="nav"][href^="/pipelines/all-namespaces"], '
+        'a[data-test="nav"][href="/pipelines"]'
+    )
+    NAV_TASKS_LINK = (
+        'a[data-test="nav"][href^="/tasks/ns"], a[data-test="nav"][href^="/tasks/all-namespaces"], '
+        'a[data-test="nav"][href="/tasks"]'
+    )
+    NAV_TRIGGERS_LINK = (
+        'a[data-test="nav"][href^="/triggers/ns"], a[data-test="nav"][href^="/triggers/all-namespaces"], '
+        'a[data-test="nav"][href="/triggers"]'
+    )
 
 
 class ActionsMenuLocators:

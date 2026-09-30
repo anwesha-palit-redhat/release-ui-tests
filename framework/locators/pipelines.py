@@ -9,10 +9,10 @@ class PipelinesBasePageLocators:
     SETUP_GITHUB_APP_LINK = 'a:has-text("Setup GitHub App")'
 
     # Create actions
-    CREATE_BUTTON = 'button:has-text("Create")'
-    CREATE_PIPELINE_MENU_ITEM = 'role=menuitem[name="Pipeline"]'
-    CREATE_PIPELINE_RUN_MENU_ITEM = 'role=menuitem[name="PipelineRun"]'
-    CREATE_REPOSITORY_MENU_ITEM = 'role=menuitem[name="Repository"]'
+    CREATE_BUTTON = '[data-test="item-create"]'
+    CREATE_PIPELINE_MENU_ITEM = '[data-test="list-page-create-dropdown-item-pipeline"]'
+    CREATE_PIPELINE_RUN_MENU_ITEM = '[data-test="list-page-create-dropdown-item-pipelineRun"]'
+    CREATE_REPOSITORY_MENU_ITEM = '[data-test="list-page-create-dropdown-item-repository"]'
 
     # Tab navigation
     PIPELINES_TAB = 'a[href^="/pipelines/ns/"]'
@@ -95,14 +95,16 @@ class PipelineBuilderPageLocators:
     # Page header
     PIPELINE_BUILDER_HEADER = 'h2:has-text("Pipeline builder")'
 
-    # Configuration mode switcher
-    PIPELINE_BUILDER_RADIO = 'input[type="radio"] + label:has-text("Pipeline builder")'
-    YAML_VIEW_RADIO = 'input[type="radio"] + label:has-text("YAML view")'
+    # Configuration mode switcher (SyncedEditorField RadioButtonField)
+    FORM_VIEW_RADIO = '[data-test="form-view-input"]'
+    YAML_VIEW_RADIO = '[data-test="yaml-view-input"]'
+    # Backward-compatible aliases
+    PIPELINE_BUILDER_RADIO = FORM_VIEW_RADIO
 
     # Form actions (common to both views)
-    CREATE_BUTTON = 'button:has-text("Create")'
-    SAVE_BUTTON = 'button:has-text("Save")'
-    CANCEL_BUTTON = 'button:has-text("Cancel")'
+    CREATE_BUTTON = '[data-test="save-changes"]'
+    SAVE_BUTTON = '[data-test="save-changes"]'
+    CANCEL_BUTTON = '[data-test-id="cancel-button"]'
 
 
 class BuilderViewLocators:
@@ -113,8 +115,10 @@ class BuilderViewLocators:
 
     # Tasks - SVG element in pipeline builder canvas
     ADD_TASK_BUTTON = '[data-test="task-list"]'
+    ADD_AFTER_BUTTON = '[data-test="add-after"]'
     TASK_NODE_TEMPLATE = '[data-test="builder-node {task_name}"]'
     TASK_NAME_INPUT = "input#task-name"
+    TASK_SIDEBAR_CLOSE = '[data-test-id="sidebar-close-button"]'
 
     # Task parameters - dynamic locators based on task/param index
     TASK_PARAM_TEMPLATE = "textarea#form-input-formData-tasks-{task_index}-params-{param_index}-value-field"
@@ -122,17 +126,25 @@ class BuilderViewLocators:
     # Task workspaces - dynamic locators based on workspace type
     TASK_WORKSPACE_TEMPLATE = '[data-test="workspaces {workspace_type}"]'
 
-    # Parameters & Workspaces
-    ADD_PARAMETER_BUTTON = 'button:has-text("Add parameter")'
-    ADD_WORKSPACE_BUTTON = 'button:has-text("Add workspace")'
+    # Parameters & Workspaces (scoped by section data-test)
+    ADD_PARAMETER_BUTTON = '[data-test="pipeline-parameters"] [data-test="add-action"]'
+    ADD_WORKSPACE_BUTTON = '[data-test="pipeline-workspaces"] [data-test="add-action"]'
     PIPELINE_PARAM_NAME_TEMPLATE = "input#form-input-formData-params-{param_index}-name-field"
     PIPELINE_PARAM_DESC_TEMPLATE = "input#form-input-formData-params-{param_index}-description-field"
-    PIPELINE_PARAM_DEFAULT_TEMPLATE = "textarea#form-input-formData-params-{param_index}-default-field"
+    PIPELINE_PARAM_DEFAULT_TEMPLATE = (
+        "#form-input-formData-params-{param_index}-default-field"
+    )
     PIPELINE_WORKSPACE_NAME_TEMPLATE = "input#form-input-formData-workspaces-{workspace_index}-name-field"
+    OPTIONAL_WORKSPACE_CHECKBOX = '[data-test="optional-workspace"]'
+    OPTIONAL_PARAM_TOGGLE = '[data-test="optional-param-toggle"]'
 
-    # Quick search dialog
-    QUICK_SEARCH_INPUT = 'input[data-test="input"]'
-    ADD_TASK_FROM_SEARCH_BUTTON = '[role="dialog"][aria-label="Quick search"] button:has-text("Add")'
+    # Quick search dialog (PF Modal; plugin sets data-test via TextInputGroupMain inputProps)
+    QUICK_SEARCH_INPUT = '[aria-modal="true"] input'
+    ADD_TASK_FROM_SEARCH_BUTTON = '[data-test="task-cta"]'
+    QUICK_SEARCH_RESULT_TEMPLATE = (
+        '[aria-modal="true"] nav button:has-text("{task_name}"), '
+        '[data-test^="item-name-{task_name}-"]'
+    )
 
 
 class YamlViewLocators:
@@ -175,12 +187,28 @@ class PipelineDetailsPageLocators:
     # Page header
     PIPELINE_NAME_HEADING = "h1"
 
+    # Actions
+    ACTIONS_BUTTON = 'button:has-text("Actions")'
+    START_MENU_ITEM = 'role=menuitem[name="Start"]'
+
     # Tabs
     DETAILS_TAB = 'role=tab[name="Details"]'
     YAML_TAB = 'role=tab[name="YAML"]'
     PARAMETERS_TAB = 'role=tab[name="Parameters"]'
     METRICS_TAB = 'role=tab[name="Metrics"]'
     PIPELINERUNS_TAB = 'role=tab[name="PipelineRuns"]'
+
+
+class StartPipelineModalLocators:
+    """Locators for the Start Pipeline modal."""
+
+    MODAL_TITLE = '[data-test-id="modal-title"]:has-text("Start Pipeline")'
+    WORKSPACE_SECTION_TEMPLATE = '[data-test="workspace {workspace_name}"]'
+    WORKSPACE_TYPE_DROPDOWN_TEMPLATE = '[data-test="workspace-type {workspace_name}"]'
+    DROPDOWN_MENU_ITEM = '[data-test="dropdown-menu-item-link"]'
+    EMPTY_DIRECTORY_OPTION = '#EmptyDirectory-link, [data-test="dropdown-menu-item-link"]:has-text("Empty Directory")'
+    START_BUTTON = '[data-test="confirm-action"]'
+    CANCEL_BUTTON = '[data-test-id="modal-cancel-action"]'
 
     # Pipeline visualization controls
     PIPELINE_DETAILS_HEADING = 'h2:has-text("Pipeline details")'

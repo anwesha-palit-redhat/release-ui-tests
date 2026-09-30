@@ -46,17 +46,22 @@ class PipelineBuilderPage(BasePage):
 
     async def switch_to_yaml_view(self) -> bool:
         """
-        Switches from Pipeline builder to YAML view by clicking the YAML view radio button.
+        Switches from Form view to YAML view by clicking the YAML view radio button.
         :return: bool: True if click succeeds.
         """
-        return await self.click_element(self.locators.YAML_VIEW_RADIO)
+        success = await self.click_element(self.locators.YAML_VIEW_RADIO)
+        if success:
+            await self.page.wait_for_selector(
+                self.yaml_view.locators.YAML_EDITOR, state="visible", timeout=15000
+            )
+        return success
 
     async def switch_to_builder_view(self) -> bool:
         """
-        Switches from YAML view to Pipeline builder by clicking the Pipeline builder radio button.
+        Switches from YAML view to Form view by clicking the Form view radio button.
         :return: bool: True if click succeeds.
         """
-        return await self.click_element(self.locators.PIPELINE_BUILDER_RADIO)
+        return await self.click_element(self.locators.FORM_VIEW_RADIO)
 
     async def click_create(self) -> bool:
         """

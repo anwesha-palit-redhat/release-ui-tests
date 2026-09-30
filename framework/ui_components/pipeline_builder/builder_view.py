@@ -33,11 +33,19 @@ class BuilderView(BasePage):
     async def click_add_task(self) -> bool:
         """
         Clicks the 'Add task' button to open the quick search dialog for adding tasks.
-        Note: The "Add task" element is an SVG in the pipeline builder canvas.
+        Note: The "Add task" element is an SVG <g> in the pipeline builder canvas.
         :return: bool: True if click succeeds.
         """
-        # The Add task element is an SVG with data-test="task-list"
-        return await self.click_element(self.locators.ADD_TASK_BUTTON)
+        # SVG <g> nodes are often not "visible" to Playwright; force-click after attach
+        loc = self.page.locator(self.locators.ADD_TASK_BUTTON).first
+        await loc.wait_for(state="attached", timeout=20000)
+        box = await loc.bounding_box()
+        if box:
+            await self.page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+        else:
+            await loc.click(force=True)
+        await self.page.wait_for_selector(self.locators.QUICK_SEARCH_INPUT, state="visible", timeout=15000)
+        return True
 
     async def search_task(self, search_text: str) -> bool:
         """
@@ -63,15 +71,43 @@ class BuilderView(BasePage):
         :return: bool: True if task was added successfully.
         """
         await self.click_add_task()
-        # Wait for quick search dialog to be visible
+        return await self._select_task_from_quick_search(task_name)
+
+    async def add_task_after(self, existing_task_name: str, task_name: str) -> bool:
+        """
+        Add a sequential task after an existing task node via the add-after decorator.
+        :param str existing_task_name: Task node to hover/click add-after on.
+        :param str task_name: Catalog task to search and add.
+        :return: bool: True if task was added successfully.
+        """
+        task_node = self.locators.TASK_NODE_TEMPLATE.format(task_name=existing_task_name)
+        await self.page.wait_for_selector(task_node, state="visible", timeout=15000)
+        await self.page.locator(task_node).hover()
+        await self.page.wait_for_selector(self.locators.ADD_AFTER_BUTTON, state="visible", timeout=10000)
+        await self.click_element(self.locators.ADD_AFTER_BUTTON)
+        # After adding a list node, open quick search via the new Add task control
+        await self.page.wait_for_selector(self.locators.ADD_TASK_BUTTON, state="visible", timeout=10000)
+        # Click the last/visible Add task list node (the newly inserted one)
+        add_task_buttons = self.page.locator(self.locators.ADD_TASK_BUTTON)
+        count = await add_task_buttons.count()
+        await add_task_buttons.nth(count - 1).click()
+        return await self._select_task_from_quick_search(task_name)
+
+    async def _select_task_from_quick_search(self, task_name: str) -> bool:
+        """Search for a task in quick search and add the first matching result."""
         await self.page.wait_for_selector(self.locators.QUICK_SEARCH_INPUT, state="visible", timeout=10000)
         await self.search_task(task_name)
-        # Wait for search results to populate
-        await self.page.wait_for_selector(self.locators.ADD_TASK_FROM_SEARCH_BUTTON, state="visible", timeout=10000)
+        result_locator = self.locators.QUICK_SEARCH_RESULT_TEMPLATE.format(task_name=task_name)
+        try:
+            await self.page.wait_for_selector(result_locator, state="visible", timeout=15000)
+            await self.page.locator(result_locator).first.click()
+        except Exception:
+            # Fall back to Add button when result row click is unnecessary
+            pass
+        await self.page.wait_for_selector(self.locators.ADD_TASK_FROM_SEARCH_BUTTON, state="visible", timeout=15000)
         await self.click_add_task_from_search()
-        # Wait for task node to appear in canvas
         task_node_locator = self.locators.TASK_NODE_TEMPLATE.format(task_name=task_name)
-        await self.page.wait_for_selector(task_node_locator, state="visible", timeout=15000)
+        await self.page.wait_for_selector(task_node_locator, state="visible", timeout=20000)
         return True
 
     async def click_task_node(self, task_name: str) -> bool:
@@ -202,5 +238,39 @@ class BuilderView(BasePage):
         # Wait for workspace input field to be visible
         await self.page.wait_for_selector(workspace_locator, state="visible", timeout=10000)
         return await self.fill_input(workspace_locator, name)
+
+    async def set_workspace_optional(self, optional: bool = True) -> bool:
+        """
+        Toggle the Optional workspace checkbox for the current workspace row.
+        :param bool optional: Desired checked state.
+        :return: bool: True if the checkbox matches the desired state.
+        """
+        checkbox = self.page.locator(self.locators.OPTIONAL_WORKSPACE_CHECKBOX).first
+        await checkbox.wait_for(state="visible", timeout=10000)
+        is_checked = await checkbox.is_checked()
+        if is_checked != optional:
+            await checkbox.click()
+        return await checkbox.is_checked() == optional
+
+    async def set_show_required_task_params_only(self, enabled: bool = True) -> bool:
+        """
+        Toggle 'Show required task params only' on the builder editor header.
+        :param bool enabled: Desired switch state (True = required-only view).
+        """
+        toggle = self.page.locator(self.locators.OPTIONAL_PARAM_TOGGLE)
+        await toggle.wait_for(state="visible", timeout=10000)
+        is_checked = await toggle.is_checked()
+        if is_checked != enabled:
+            await toggle.click()
+        return await toggle.is_checked() == enabled
+
+    async def close_task_sidebar(self) -> bool:
+        """Close the task configuration sidebar if open."""
+        close_btn = self.page.locator(self.locators.TASK_SIDEBAR_CLOSE)
+        if await close_btn.count() == 0:
+            return True
+        if await close_btn.first.is_visible():
+            return await self.click_element(self.locators.TASK_SIDEBAR_CLOSE)
+        return True
 
     # ==================== Helper/Workflow Methods ====================

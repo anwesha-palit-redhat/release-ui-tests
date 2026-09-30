@@ -50,16 +50,23 @@ class LoginPage(BasePage):
         Performs the complete login flow based on the authentication type.
         For "direct": skips OAuth provider selection and fills credentials immediately.
         For "kube:admin" or "htpasswd": goes through OAuth provider selection first.
+
+        If no login form is present (e.g. local bridge with auth disabled), returns True.
         :param str auth_type: The authentication type ("kube:admin", "htpasswd", or "direct").
         :return: bool: True if login is successful.
         """
+        # Local start-console.sh sets BRIDGE_USER_AUTH=disabled — already on the console
+        if not await self.is_visible(self.locators.USERNAME_INPUT, timeout=5000):
+            if "oauth" not in self.page.url.lower():
+                return True
+
         if auth_type == "direct":
             await self.is_visible(self.locators.USERNAME_INPUT)
             return await self.login()
-        else:
-            assert await self.verify_successful_navigation_to_login_page()
-            assert await self.choose_login_auth_type(auth_type)
-            return await self.login()
+
+        assert await self.verify_successful_navigation_to_login_page()
+        assert await self.choose_login_auth_type(auth_type)
+        return await self.login()
 
     async def login(self) -> bool:
         """

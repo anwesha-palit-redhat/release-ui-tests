@@ -7,6 +7,7 @@ from framework.ui_components.commons.actions_menu import ActionsMenu
 from framework.ui_components.commons.favorites import Favorites
 from framework.ui_components.commons.project_selector import ProjectSelector
 from framework.ui_components.console_url_patterns import PIPELINE_DETAILS_URL
+from framework.ui_components.pipelines.start_pipeline_modal import StartPipelineModal
 
 
 class PipelineDetailsPage(BasePage):
@@ -22,6 +23,7 @@ class PipelineDetailsPage(BasePage):
         self.project_selector = ProjectSelector(page, config)
         self.favorites = Favorites(page, config)
         self.actions_menu = ActionsMenu(page, config)
+        self.start_modal = StartPipelineModal(page, config)
 
     async def verify_on_page(self) -> bool:
         """
@@ -126,3 +128,12 @@ class PipelineDetailsPage(BasePage):
         :return: str: The pipeline name.
         """
         return await self.page.locator(self.locators.PIPELINE_NAME_HEADING).inner_text()
+
+    async def open_start_pipeline_modal(self) -> bool:
+        """Open Actions → Start to launch the Start Pipeline modal."""
+        await self.actions_menu.click_actions_button()
+        await self.page.wait_for_selector(self.locators.START_MENU_ITEM, state="visible", timeout=10000)
+        success = await self.click_element(self.locators.START_MENU_ITEM)
+        if success:
+            return await self.start_modal.verify_open()
+        return False

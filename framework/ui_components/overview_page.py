@@ -21,35 +21,33 @@ class OverViewPage(BasePage):
 
     async def verify_on_page(self) -> bool:
         """
-        Verifies that the Overview page is currently displayed by checking URL and header visibility.
-        First checks for and dismisses the "Skip tour" popup if present (for first-time login).
-        Uses a flag to avoid unnecessary wait time - once the tour is skipped (or determined to not
-        be present), subsequent calls skip this check entirely. Then waits for URL to end with
-        "dashboards", and checks if the Overview header is visible. Both conditions must be true
-        for verification to pass.
+        Verifies that the console has loaded after login.
 
-        The tour skip button click is wrapped in try-except to handle cases where:
-        - Button is visible but not clickable (animation in progress)
-        - Button disappears between visibility check and click
-        - Other transient UI issues
-
-        Note: Flag is not thread-safe currently. See TODO comment for thread-safe implementation
-        when parallel test execution is added.
-        :return: bool: True if URL matches and Overview header is visible.
-        Raises AssertionError with specific message if URL or header check fails.
-        Raises TimeoutError if URL doesn't match within the timeout.
+        Prefers the cluster Overview (/dashboards + Overview header). For local bridge
+        with auth disabled, accepts a loaded shell (nav visible) if /dashboards is slow
+        or not the landing route.
         """
         global _tour_skipped
 
-        overview_page_status = await self._verify_page("dashboards", self.locators.OVERVIEW_HEADER, "Overview page")
+        try:
+            overview_page_status = await self._verify_page(
+                "dashboards", self.locators.OVERVIEW_HEADER, "Overview page"
+            )
+        except (AssertionError, Exception):
+            # Local console often stays on "/" briefly; wait for nav shell instead
+            if not await self.is_visible(self.locators.CONSOLE_READY, timeout=self.config.timeout_ms):
+                raise AssertionError(
+                    f"Console did not finish loading after login. Current URL: {self.page.url}. "
+                    "For localhost: ensure oc login works (bridge token) and "
+                    "console-plugin is serving on :9001 (yarn start)."
+                ) from None
+            overview_page_status = True
 
         if not _tour_skipped:
             if await self.is_visible(self.locators.SKIP_TOUR_BUTTON, timeout=5000):
                 try:
                     await self.click_element(self.locators.SKIP_TOUR_BUTTON)
                 except Exception:
-                    # Silently ignore click failures - tour button is optional UI element
-                    # Common failures: element not clickable, already dismissed, animation timing
                     pass
             _tour_skipped = True
 

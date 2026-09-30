@@ -12,9 +12,10 @@ from pytest_bdd import parsers, scenarios, then, when
 
 from framework.fixtures.async_bridge import run_async
 
-# Register all scenarios from the pipeline_builder_sanity feature file
-FEATURE_FILE = Path(__file__).parent.parent / "features" / "pipeline_builder.feature"
-scenarios(FEATURE_FILE)
+# Register sanity + regression Pipeline Builder feature files
+FEATURES_DIR = Path(__file__).parent.parent / "features"
+scenarios(FEATURES_DIR / "pipeline_builder.feature")
+scenarios(FEATURES_DIR / "pipeline_builder_regression.feature")
 
 
 @when("the user clicks Create button on Pipelines page")
@@ -172,14 +173,51 @@ def add_pipeline_parameter(
     """
 
     async def _step() -> None:
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
         await page["pipelines"].builder.builder_view.click_add_parameter()
-
+        param_index = await _next_param_index(page)
         success = await page["pipelines"].builder.builder_view.configure_pipeline_parameter(
-            param_index=0, name=param_name, description=param_description
+            param_index=param_index, name=param_name, description=param_description
         )
         assert success, f"Failed to configure pipeline parameter '{param_name}'"
 
     run_async(playwright_event_loop, _step())
+
+
+@when(
+    parsers.parse(
+        'the user adds pipeline parameter with name "{param_name}" description "{param_description}" and default "{default_value}"'
+    )
+)
+def add_pipeline_parameter_with_default(
+    page: Dict[str, Any],
+    param_name: str,
+    param_description: str,
+    default_value: str,
+    playwright_event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Add a pipeline parameter including a default value (optional at start time)."""
+
+    async def _step() -> None:
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
+        await page["pipelines"].builder.builder_view.click_add_parameter()
+        param_index = await _next_param_index(page)
+        success = await page["pipelines"].builder.builder_view.configure_pipeline_parameter(
+            param_index=param_index,
+            name=param_name,
+            description=param_description,
+            default_value=default_value,
+        )
+        assert success, f"Failed to configure pipeline parameter '{param_name}'"
+
+    run_async(playwright_event_loop, _step())
+
+
+async def _next_param_index(page: Dict[str, Any]) -> int:
+    """Return the index of the newly added (last) parameter row."""
+    locator = page["raw_page"].locator('input[id^="form-input-formData-params-"][id$="-name-field"]')
+    count = await locator.count()
+    return max(count - 1, 0)
 
 
 @when(parsers.parse('the user adds pipeline workspace with name "{workspace_name}"'))
@@ -199,6 +237,7 @@ def add_pipeline_workspace(
     """
 
     async def _step() -> None:
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
         await page["pipelines"].builder.builder_view.click_add_workspace()
 
         success = await page["pipelines"].builder.builder_view.configure_pipeline_workspace(
@@ -340,5 +379,192 @@ def verify_pipeline_name_on_details(
         assert actual_name == expected_name, (
             f"Pipeline name mismatch. Expected: '{expected_name}', Got: '{actual_name}'"
         )
+
+    run_async(playwright_event_loop, _step())
+
+
+@when(parsers.parse('the user adds task "{task_name}" after task "{existing_task}" in builder view'))
+def add_task_after_existing(
+    page: Dict[str, Any],
+    task_name: str,
+    existing_task: str,
+    playwright_event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Add a sequential task after an existing builder node."""
+
+    async def _step() -> None:
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
+        added = await page["pipelines"].builder.builder_view.add_task_after(existing_task, task_name)
+        assert added, f"Failed to add task '{task_name}' after '{existing_task}'"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user switches to YAML view")
+def switch_to_yaml_view(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Switch Pipeline Builder to YAML view."""
+
+    async def _step() -> None:
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
+        success = await page["pipelines"].builder.switch_to_yaml_view()
+        assert success, "Failed to switch to YAML view"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user switches to Form view")
+def switch_to_form_view(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Switch Pipeline Builder back to Form view."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.switch_to_builder_view()
+        assert success, "Failed to switch to Form view"
+        await page["raw_page"].wait_for_selector(
+            page["pipelines"].builder.builder_view.locators.PIPELINE_NAME_INPUT,
+            state="visible",
+            timeout=15000,
+        )
+
+    run_async(playwright_event_loop, _step())
+
+
+@when(parsers.parse('the user updates parameter "{param_name}" default to "{new_default}" in YAML view'))
+def update_param_default_in_yaml(
+    page: Dict[str, Any],
+    param_name: str,
+    new_default: str,
+    playwright_event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Update a parameter default value via the YAML editor."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.yaml_view.update_param_default(param_name, new_default)
+        assert success, f"Failed to update parameter '{param_name}' default in YAML"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user toggles show required task params only")
+def toggle_show_required_params(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Enable 'Show required task params only'."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.builder_view.set_show_required_task_params_only(True)
+        assert success, "Failed to enable show required task params only"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user toggles show all task params")
+def toggle_show_all_params(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Disable 'Show required task params only' to show optional params again."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.builder_view.set_show_required_task_params_only(False)
+        assert success, "Failed to show all task params"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user toggles workspace optional view")
+def toggle_workspace_optional(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Mark the workspace as optional."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.builder_view.set_workspace_optional(True)
+        assert success, "Failed to set workspace as optional"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user toggles workspace required view")
+def toggle_workspace_required(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Mark the workspace as required (uncheck optional)."""
+
+    async def _step() -> None:
+        success = await page["pipelines"].builder.builder_view.set_workspace_optional(False)
+        assert success, "Failed to set workspace as required"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when(
+    parsers.parse(
+        'the user maps task "{task_name}" workspace "{workspace_type}" to pipeline workspace "{pipeline_workspace}"'
+    )
+)
+def map_task_workspace(
+    page: Dict[str, Any],
+    task_name: str,
+    workspace_type: str,
+    pipeline_workspace: str,
+    playwright_event_loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Open a task sidebar and map a task workspace to a pipeline workspace."""
+
+    async def _step() -> None:
+        clicked = await page["pipelines"].builder.builder_view.click_task_node(task_name)
+        assert clicked, f"Failed to open task '{task_name}'"
+        selected = await page["pipelines"].builder.builder_view.select_task_workspace(
+            task_index=0,
+            workspace_index=0,
+            workspace_name=pipeline_workspace,
+            workspace_type=workspace_type,
+        )
+        assert selected, (
+            f"Failed to map task '{task_name}' workspace '{workspace_type}' to '{pipeline_workspace}'"
+        )
+        await page["pipelines"].builder.builder_view.close_task_sidebar()
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user starts the pipeline")
+def start_pipeline_from_details(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Open Start Pipeline modal from pipeline details Actions menu."""
+
+    async def _step() -> None:
+        opened = await page["pipelines"].pipeline.details.open_start_pipeline_modal()
+        assert opened, "Failed to open Start Pipeline modal"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when(parsers.parse('the user selects Empty Directory for workspace "{workspace_name}" in Start Pipeline modal'))
+def select_empty_directory_workspace(
+    page: Dict[str, Any], workspace_name: str, playwright_event_loop: asyncio.AbstractEventLoop
+) -> None:
+    """Choose Empty Directory volume type for a workspace in the Start modal."""
+
+    async def _step() -> None:
+        selected = await page["pipelines"].pipeline.details.start_modal.select_workspace_empty_directory(
+            workspace_name
+        )
+        assert selected, f"Failed to select Empty Directory for workspace '{workspace_name}'"
+
+    run_async(playwright_event_loop, _step())
+
+
+@when("the user confirms Start Pipeline")
+def confirm_start_pipeline(page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop) -> None:
+    """Click Start in the Start Pipeline modal."""
+
+    async def _step() -> None:
+        started = await page["pipelines"].pipeline.details.start_modal.click_start()
+        assert started, "Failed to confirm Start Pipeline"
+
+    run_async(playwright_event_loop, _step())
+
+
+@then("the user should be redirected to a PipelineRun details page")
+def verify_redirected_to_pipelinerun_details(
+    page: Dict[str, Any], playwright_event_loop: asyncio.AbstractEventLoop
+) -> None:
+    """Verify navigation landed on a PipelineRun details page after Start."""
+
+    async def _step() -> None:
+        await page["raw_page"].wait_for_load_state("networkidle")
+        on_page = await page["pipelines"].pipelinerun.details.verify_on_page()
+        assert on_page, "Failed to navigate to PipelineRun details page after starting pipeline"
 
     run_async(playwright_event_loop, _step())
